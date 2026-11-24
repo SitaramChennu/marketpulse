@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.pyc
+cache/
+debug_*.py
+test_*.py
+seed_portfolio.py
+generate_icons.py
+.git/
+.github_config.json
+.env
+cloudflared.exe
+scratch/

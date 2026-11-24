@@ -1,0 +1,1701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MarketPulse - Live Markets & Investment Tracker</title>
+    <!-- PWA & Mobile Meta Tags -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="MarketPulse">
+    <link rel="apple-touch-icon" href="/static/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" href="/static/icons/icon-192.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        profit: { light: '#ecfdf5', DEFAULT: '#10b981', dark: '#059669' },
+                        loss: { light: '#fef2f2', DEFAULT: '#ef4444', dark: '#dc2626' },
+                        brand: { 50: '#eff6ff', 100: '#dbeafe', 500: '#3b82f6', 600: '#2563eb', 700: '#1d4ed8', 900: '#1e3a5f' }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; box-sizing: border-box; }
+        :root {
+            --sat: env(safe-area-inset-top, 0px);
+            --sab: env(safe-area-inset-bottom, 0px);
+        }
+        body {
+            padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .mobile-bottom-nav {
+            padding-bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+        }
+        .tab-active { border-bottom: 3px solid #2563eb; color: #2563eb; font-weight: 600; }
+        .card-hover { transition: all 0.2s; }
+        .card-hover:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.08); }
+        .pulse-dot { animation: pulse-dot 2s infinite; }
+        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        .fade-in { animation: fadeIn 0.25s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .modal-backdrop { background: rgba(0,0,0,0.55); backdrop-filter: blur(4px); }
+        .ticker-bar { overflow: hidden; white-space: nowrap; }
+        .ticker-content { display: inline-block; animation: ticker 32s linear infinite; }
+        @keyframes ticker { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    </style>
+</head>
+<body class="bg-gray-50 font-sans text-gray-800 min-h-screen antialiased selection:bg-blue-100 selection:text-blue-900">
+
+    <!-- Top Header -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-xs">
+        <div class="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 sm:py-3 flex items-center justify-between gap-2">
+            <!-- Brand -->
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div class="bg-brand-600 text-white p-2 rounded-xl flex-shrink-0 shadow-xs">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                    </svg>
+                </div>
+                <div class="min-w-0">
+                    <h1 class="text-base sm:text-lg font-extrabold text-brand-900 tracking-tight leading-none truncate">MarketPulse</h1>
+                    <p class="text-[11px] text-gray-400 font-medium leading-tight hidden xs:block">Live Markets & Portfolio Tracker</p>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex items-center gap-1.5 sm:gap-2.5 flex-shrink-0">
+                <!-- User Account Pill -->
+                <button onclick="showAuthModal()" id="userAccountBtn" class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 transition border border-gray-200" title="Account">
+                    <span class="text-sm">👤</span>
+                    <span id="userAccountName" class="max-w-[70px] sm:max-w-[110px] truncate">Sign In</span>
+                </button>
+                <button id="pwaInstallBtn" onclick="installPWA()" class="hidden bg-brand-600 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold hover:bg-brand-700 transition flex items-center gap-1 shadow-xs animate-bounce">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span class="hidden sm:inline">Install</span>
+                </button>
+                <button onclick="showPhoneModal()" class="hidden sm:flex bg-blue-50 text-brand-700 border border-blue-200 px-2.5 py-1.5 rounded-xl text-xs font-semibold hover:bg-blue-100 transition items-center gap-1">
+                    <svg class="w-3.5 h-3.5 text-brand-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    <span>Phone</span>
+                </button>
+                <div id="marketStatusBadge" class="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600">
+                    <span class="w-2 h-2 rounded-full bg-gray-400"></span>
+                    <span class="hidden sm:inline">Checking</span>
+                </div>
+                <button onclick="refreshAllData()" class="p-1.5 rounded-xl hover:bg-gray-100 text-gray-500 hover:text-brand-600 transition" title="Refresh Live Data">
+                    <svg id="refreshIcon" class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Live Index Ticker Bar -->
+        <div id="tickerBar" class="ticker-bar bg-gray-900 text-white py-1 text-xs">
+            <div class="ticker-content" id="tickerContent">
+                <span class="text-gray-400 mx-4">Loading market indices...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Desktop Tabs (hidden on small mobile screens) -->
+    <div class="bg-white border-b border-gray-200 hidden md:block">
+        <div class="max-w-7xl mx-auto px-4">
+            <nav class="flex gap-2">
+                <button onclick="switchTab('portfolio')" id="tab-portfolio" class="px-5 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent tab-active">
+                    📊 My Portfolio
+                </button>
+                <button onclick="switchTab('explore')" id="tab-explore" class="px-5 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent">
+                    🔍 Explore All Funds
+                </button>
+                <button onclick="switchTab('watchlist')" id="tab-watchlist" class="px-5 py-3 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent">
+                    ⭐ Watchlist
+                </button>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+
+        <!-- ===== PORTFOLIO TAB ===== -->
+        <div id="content-portfolio" class="tab-content">
+            <!-- Portfolio Summary Cards (2x2 on mobile, 4 columns on desktop) -->
+            <div id="portfolioSummary" class="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 mb-4 sm:mb-6">
+                <!-- Current Value -->
+                <div class="bg-white rounded-2xl p-3.5 sm:p-4 border border-gray-100 shadow-xs">
+                    <p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Current Value</p>
+                    <p id="summaryCurrentValue" class="text-lg sm:text-2xl font-extrabold text-gray-900 mt-0.5 truncate">₹0.00</p>
+                    <p class="text-[11px] text-gray-400 mt-0.5">Live estimated value</p>
+                </div>
+                <!-- Invested Value -->
+                <div class="bg-white rounded-2xl p-3.5 sm:p-4 border border-gray-100 shadow-xs">
+                    <p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Invested Value</p>
+                    <p id="summaryInvested" class="text-lg sm:text-2xl font-extrabold text-gray-700 mt-0.5 truncate">₹0.00</p>
+                    <p class="text-[11px] text-gray-400 mt-0.5">Total capital invested</p>
+                </div>
+                <!-- 1D Est. Change -->
+                <div class="bg-white rounded-2xl p-3.5 sm:p-4 border border-gray-100 shadow-xs">
+                    <p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Today's Est. Return</p>
+                    <p id="summaryDayChange" class="text-lg sm:text-2xl font-extrabold text-gray-900 mt-0.5 truncate">₹0.00</p>
+                    <p id="summaryDayChangePct" class="text-[11px] font-semibold mt-0.5">0.00%</p>
+                </div>
+                <!-- Total Returns -->
+                <div class="bg-white rounded-2xl p-3.5 sm:p-4 border border-gray-100 shadow-xs">
+                    <p class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Total Returns</p>
+                    <p id="summaryTotalReturn" class="text-lg sm:text-2xl font-extrabold text-gray-900 mt-0.5 truncate">₹0.00</p>
+                    <p id="summaryTotalReturnPct" class="text-[11px] font-semibold mt-0.5">0.00%</p>
+                </div>
+            </div>
+
+            <!-- Holdings Section -->
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
+                <div class="p-3.5 sm:p-4 border-b border-gray-100 flex items-center justify-between">
+                    <div>
+                        <h2 class="font-bold text-gray-800 text-base sm:text-lg">My Investments</h2>
+                        <p id="holdingsCountLabel" class="text-xs text-gray-400">Loading holdings...</p>
+                    </div>
+                    <button onclick="showAddFundModal()" class="bg-brand-600 hover:bg-brand-700 active:scale-95 text-white px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 shadow-xs">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                        <span>Add Fund</span>
+                    </button>
+                </div>
+
+                <!-- Holdings List Container (Responsive Mobile Cards & Desktop Rows) -->
+                <div id="portfolioTable" class="p-3 sm:p-4 space-y-3">
+                    <div class="p-8 text-center text-gray-400">
+                        <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                        </svg>
+                        <p class="font-semibold text-gray-600">No mutual funds added yet</p>
+                        <p class="text-xs mt-1 text-gray-400">Click "Add Fund" to track your mutual funds with live NAV updates</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== EXPLORE TAB ===== -->
+        <div id="content-explore" class="tab-content hidden">
+            <!-- Search Input -->
+            <div class="mb-4">
+                <div class="relative">
+                    <svg class="absolute left-3.5 top-3.5 w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                    <input id="searchInput" type="text" placeholder="Search by fund name (e.g. Parag Parikh, Jio, HDFC, Nifty)..."
+                        class="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-2xl text-sm focus:ring-2 focus:ring-brand-500 focus:border-transparent outline-none shadow-xs transition"
+                        oninput="debounceSearch(this.value)">
+                </div>
+            </div>
+
+            <!-- Search Results List -->
+            <div id="exploreResults" class="space-y-2.5">
+                <div class="bg-white rounded-2xl border border-gray-100 p-8 text-center text-gray-400 shadow-xs">
+                    <p class="font-semibold text-gray-600">Search 10,000+ Indian Mutual Funds</p>
+                    <p class="text-xs mt-1 text-gray-400">Type any fund name, AMC, or scheme code to see live NAV predictions</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== WATCHLIST TAB ===== -->
+        <div id="content-watchlist" class="tab-content hidden">
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-xs overflow-hidden">
+                <div class="p-4 border-b border-gray-100">
+                    <h2 class="font-bold text-gray-800 text-base">⭐ My Watchlist</h2>
+                    <p class="text-xs text-gray-400">Track funds before you invest</p>
+                </div>
+                <div id="watchlistContent" class="p-3 sm:p-4 space-y-2.5">
+                    <div class="p-8 text-center text-gray-400">
+                        <p class="font-semibold text-gray-600">Your watchlist is empty</p>
+                        <p class="text-xs mt-1 text-gray-400">Go to Explore and tap ⭐ on any fund to track its live NAV here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- ===== FULL-SCREEN FIRST-TIME AUTHENTICATION GATE ===== -->
+    <div id="authGate" class="fixed inset-0 z-50 bg-gray-50 flex items-center justify-center p-4 overflow-y-auto hidden">
+        <div class="w-full max-w-sm bg-white rounded-3xl shadow-xl border border-gray-100 p-6 sm:p-8 fade-in">
+            <div class="text-center mb-6">
+                <div class="w-14 h-14 bg-gradient-to-tr from-brand-600 to-blue-500 text-white rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-md">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+                    </svg>
+                </div>
+                <h2 class="text-xl font-extrabold text-gray-900 tracking-tight">MarketPulse</h2>
+                <p class="text-xs text-gray-500 mt-1">Live Markets & Investment Intelligence</p>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="flex border-b border-gray-200 mb-4">
+                <button id="gateTabLogin" onclick="switchGateTab('login')" class="flex-1 py-2 text-sm font-bold text-brand-600 border-b-2 border-brand-600 transition">
+                    Sign In
+                </button>
+                <button id="gateTabRegister" onclick="switchGateTab('register')" class="flex-1 py-2 text-sm font-semibold text-gray-400 hover:text-gray-600 transition">
+                    Create Account
+                </button>
+            </div>
+
+            <div id="gateAlert" class="hidden p-3 rounded-xl text-xs font-medium mb-3"></div>
+
+            <div class="space-y-3.5">
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Username</label>
+                    <input id="gateUsername" type="text" placeholder="e.g. sitaram or john"
+                        class="w-full mt-1 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none transition">
+                </div>
+                <div>
+                    <label class="text-xs font-semibold text-gray-600">Password</label>
+                    <input id="gatePassword" type="password" placeholder="••••••••"
+                        class="w-full mt-1 px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:bg-white focus:ring-2 focus:ring-brand-500 outline-none transition"
+                        onkeydown="if(event.key==='Enter') submitGateAuth()">
+                </div>
+            </div>
+
+            <button id="gateSubmitBtn" onclick="submitGateAuth()" class="w-full mt-5 bg-brand-600 hover:bg-brand-700 active:scale-[0.98] text-white py-3 rounded-xl font-bold text-sm shadow-md transition">
+                Sign In to Portfolio
+            </button>
+
+            <!-- Quick Demo Button -->
+            <div class="mt-4 pt-4 border-t border-gray-100 text-center">
+                <button onclick="quickDemoLogin()" class="w-full py-2 px-3 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 text-brand-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition">
+                    <span>⚡</span>
+                    <span>Demo Account: sitaram</span>
+                </button>
+                <p class="text-[11px] text-gray-400 mt-2">100% Free · Works with Any Broker</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== REVAMPED ADD FUND MODAL (Supports Historical / Past Investments from Any Broker) ===== -->
+    <div id="addFundModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="modal-backdrop absolute inset-0" onclick="closeAddFundModal()"></div>
+        <div class="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl p-4 sm:p-6 fade-in max-h-[92dvh] overflow-y-auto">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-base sm:text-lg font-bold text-gray-800">Add Fund to Portfolio</h3>
+                <button onclick="closeAddFundModal()" class="p-1.5 hover:bg-gray-100 rounded-xl text-gray-400 hover:text-gray-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Fund Search Input -->
+            <div>
+                <label class="text-xs font-semibold text-gray-600">Search Mutual Fund</label>
+                <input id="modalSearchInput" type="text" placeholder="Type fund name (e.g. Parag Parikh, Jio, HDFC)..."
+                    class="w-full mt-1 px-3.5 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                    oninput="debounceModalSearch(this.value)">
+                <div id="modalSearchResults" class="mt-2 max-h-40 overflow-y-auto border border-gray-200 rounded-xl hidden bg-white divide-y divide-gray-100 shadow-sm"></div>
+            </div>
+
+            <!-- Selected Fund Badge -->
+            <div id="selectedFundInfo" class="hidden mt-3 bg-blue-50 p-3 rounded-2xl border border-blue-100">
+                <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                        <p class="text-xs sm:text-sm font-bold text-brand-900 leading-snug" id="selectedFundName"></p>
+                        <div class="flex items-center gap-2 mt-1 text-xs text-brand-700">
+                            <span id="selectedFundCode" class="font-mono text-[11px] bg-white px-2 py-0.5 rounded border border-blue-200"></span>
+                            <span id="selectedFundNav" class="font-bold text-gray-800"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Calculation Modes -->
+            <div id="investmentFieldsContainer" class="mt-4 space-y-3.5">
+                <div>
+                    <label class="text-xs font-semibold text-gray-600 block mb-1.5">How would you like to enter values?</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-gray-100 p-1 rounded-xl text-xs font-medium text-gray-600 text-center">
+                        <button id="addModeTab-broker" onclick="switchAddMode('broker')" class="py-1.5 px-1 rounded-lg bg-white text-brand-700 font-bold shadow-xs transition">
+                            💼 Broker Values
+                        </button>
+                        <button id="addModeTab-units" onclick="switchAddMode('units')" class="py-1.5 px-1 rounded-lg hover:text-gray-900 transition">
+                            🔢 By Units
+                        </button>
+                        <button id="addModeTab-date" onclick="switchAddMode('date')" class="py-1.5 px-1 rounded-lg hover:text-gray-900 transition">
+                            📅 Past Date
+                        </button>
+                        <button id="addModeTab-buynav" onclick="switchAddMode('buynav')" class="py-1.5 px-1 rounded-lg hover:text-gray-900 transition">
+                            🏷️ Buy NAV
+                        </button>
+                    </div>
+                </div>
+
+                <!-- MODE 1: From Broker App (Invested + Current Value) -->
+                <div id="modeSection-broker" class="space-y-3">
+                    <p class="text-[11px] text-gray-500 bg-amber-50 border border-amber-200 text-amber-800 p-2 rounded-xl">
+                        ⭐ <strong>Easiest for past investments:</strong> Open your broker app (Zerodha, Groww, AngelOne, Upstox, Indmoney, CAMS, etc.) and enter the <strong>Total Invested</strong> and <strong>Current Value</strong> shown on screen.
+                    </p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-700">Total Invested (₹)</label>
+                            <input id="brokerInvestedInput" type="number" step="0.01" placeholder="e.g. 700"
+                                class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                                oninput="onBrokerValuesChange()">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-700">Current Value in App (₹)</label>
+                            <input id="brokerCurrentValInput" type="number" step="0.01" placeholder="e.g. 730"
+                                class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                                oninput="onBrokerValuesChange()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODE 2: By Units Held & Invested -->
+                <div id="modeSection-units" class="space-y-3 hidden">
+                    <p class="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 text-gray-700 p-2 rounded-xl">
+                        Enter your <strong>Units Held</strong> (from your broker app, CAS statement, or AMC account) and <strong>Invested Amount</strong>.
+                    </p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-700">Units Held</label>
+                            <input id="unitsUnitsInput" type="number" step="0.0001" placeholder="e.g. 69.6824"
+                                class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                                oninput="onUnitsValuesChange()">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-700">Total Invested (₹)</label>
+                            <input id="unitsInvestedInput" type="number" step="0.01" placeholder="e.g. 700"
+                                class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                                oninput="onUnitsValuesChange()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MODE 3: By Past Investment Date (Historical Lookup) -->
+                <div id="modeSection-date" class="space-y-3 hidden">
+                    <p class="text-[11px] text-gray-500 bg-blue-50 border border-blue-200 text-blue-800 p-2 rounded-xl">
+                        Pick the date you invested — our tool looks up the <strong>exact historical NAV</strong> on that date!
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-700">Investment Date</label>
+                            <input id="dateDateInput" type="date"
+                                class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                                onchange="onDateValuesChange()">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-700">Amount Invested (₹)</label>
+                            <input id="dateInvestedInput" type="number" step="0.01" placeholder="e.g. 5000"
+                                class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                                oninput="onDateValuesChange()">
+                        </div>
+                    </div>
+                    <div id="dateLookupStatus" class="text-xs text-gray-500 hidden font-medium"></div>
+                </div>
+
+                <!-- MODE 4: By Buy NAV -->
+                <div id="modeSection-buynav" class="space-y-3 hidden">
+                    <p class="text-[11px] text-gray-500 bg-gray-50 border border-gray-200 text-gray-700 p-2 rounded-xl">
+                        Enter your <strong>Average Purchase NAV</strong> and total amount invested.
+                    </p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-semibold text-gray-700">Buy NAV (₹)</label>
+                            <input id="buynavNavInput" type="number" step="0.0001" placeholder="e.g. 10.04"
+                                class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                                oninput="onBuyNavValuesChange()">
+                        </div>
+                        <div>
+                            <label class="text-xs font-semibold text-gray-700">Amount Invested (₹)</label>
+                            <input id="buynavInvestedInput" type="number" step="0.01" placeholder="e.g. 700"
+                                class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                                oninput="onBuyNavValuesChange()">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real-Time Calculation Preview Card -->
+                <div id="calculationPreviewBox" class="bg-gray-50 rounded-2xl p-3.5 border border-gray-200 space-y-1.5 text-xs hidden">
+                    <p class="text-[11px] font-bold uppercase tracking-wider text-gray-400 mb-1">Calculated Holding Preview:</p>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-500">Units Owned:</span>
+                        <span id="previewUnits" class="font-bold text-gray-900 font-mono">-</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-500">Your Avg Purchase NAV:</span>
+                        <span id="previewBuyNav" class="font-semibold text-gray-800 font-mono">-</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-500">Today's Current NAV:</span>
+                        <span id="previewTodayNav" class="font-semibold text-gray-800 font-mono">-</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-500">Current Value:</span>
+                        <span id="previewCurrentVal" class="font-bold text-gray-900 font-mono">-</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-1.5 border-t border-gray-200">
+                        <span class="text-gray-600 font-medium">Past Total Returns:</span>
+                        <span id="previewReturns" class="font-extrabold text-green-600 font-mono">-</span>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <button id="addFundBtn" onclick="addFundToPortfolio()" disabled
+                    class="w-full bg-brand-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-brand-700 active:scale-[0.98] transition disabled:opacity-40 disabled:cursor-not-allowed shadow-md">
+                    Add to Portfolio
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== FUND DETAIL MODAL ===== -->
+    <div id="fundDetailModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="modal-backdrop absolute inset-0" onclick="closeFundDetailModal()"></div>
+        <div class="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl p-4 sm:p-6 fade-in max-h-[85vh] overflow-y-auto">
+            <div class="flex justify-between items-start mb-4">
+                <h3 id="detailFundName" class="text-base sm:text-lg font-bold pr-3 text-gray-900 leading-snug"></h3>
+                <button onclick="closeFundDetailModal()" class="p-1 hover:bg-gray-100 rounded-xl text-gray-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div id="fundDetailContent">Loading...</div>
+        </div>
+    </div>
+
+    <!-- ===== PHONE / PWA INSTALL MODAL ===== -->
+    <div id="phoneModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="modal-backdrop absolute inset-0" onclick="closePhoneModal()"></div>
+        <div class="relative w-full max-w-md bg-white rounded-3xl shadow-2xl p-5 sm:p-6 fade-in">
+            <div class="flex justify-between items-center mb-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-2xl">📱</span>
+                    <h3 class="text-base sm:text-lg font-bold text-gray-900">Install App on Phone</h3>
+                </div>
+                <button onclick="closePhoneModal()" class="p-1 hover:bg-gray-100 rounded-xl text-gray-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div class="text-center my-3">
+                <p class="text-xs text-gray-500 mb-2">Scan with camera to open instantly:</p>
+                <img src="/static/phone_qr.png" alt="Scan to open on phone" class="w-36 h-36 mx-auto rounded-2xl border border-gray-200 p-1 shadow-xs">
+            </div>
+
+            <div class="bg-gray-50 rounded-2xl p-3 border border-gray-200 mb-3 text-xs">
+                <div class="flex items-center justify-between">
+                    <span class="text-gray-400 font-medium">Public URL:</span>
+                    <span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold text-[10px]">Worldwide 4G/5G</span>
+                </div>
+                <div class="flex items-center justify-between gap-2 mt-1">
+                    <span id="phoneUrlText" class="font-mono text-brand-700 font-semibold truncate text-[11px] sm:text-xs">https://seconds-yeah-red-fairly.trycloudflare.com</span>
+                    <button onclick="copyPhoneUrl()" id="copyUrlBtn" class="bg-brand-600 hover:bg-brand-700 text-white text-xs px-2.5 py-1 rounded-lg flex-shrink-0 transition">
+                        Copy
+                    </button>
+                </div>
+            </div>
+
+            <div class="space-y-1.5 text-xs text-gray-600 bg-blue-50 p-3 rounded-2xl border border-blue-100">
+                <p class="font-bold text-brand-900 text-xs">Install as a Full-Screen Home Screen App:</p>
+                <p><strong>🤖 Android (Chrome):</strong> Tap <strong>⋮</strong> ➔ tap <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong>.</p>
+                <p><strong>🍎 iPhone (Safari):</strong> Tap <strong>Share (⎋)</strong> ➔ tap <strong>"Add to Home Screen"</strong>.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ===== USER PROFILE MODAL ===== -->
+    <div id="authModal" class="fixed inset-0 z-50 hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="modal-backdrop absolute inset-0" onclick="closeAuthModal()"></div>
+        <div class="relative w-full max-w-sm bg-white rounded-3xl shadow-2xl p-5 sm:p-6 fade-in">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="authModalTitle" class="text-base font-bold text-gray-800">Account</h3>
+                <button onclick="closeAuthModal()" class="p-1 hover:bg-gray-100 rounded-xl text-gray-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <!-- Profile View -->
+            <div id="authProfileView" class="space-y-4">
+                <div class="bg-gray-50 p-4 rounded-2xl text-center border border-gray-100">
+                    <div class="w-12 h-12 bg-brand-100 text-brand-700 rounded-full flex items-center justify-center mx-auto text-xl font-bold mb-2">
+                        <span id="profileAvatar">S</span>
+                    </div>
+                    <p class="font-bold text-gray-800 text-base" id="profileUsername">sitaram</p>
+                    <p class="text-xs text-green-600 mt-0.5 font-medium">● Logged In</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="switchToAuthForm('login')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 py-2.5 rounded-xl text-xs font-semibold transition">
+                        Switch Account
+                    </button>
+                    <button onclick="logoutCurrentUser()" class="flex-1 bg-red-50 hover:bg-red-100 text-red-600 py-2.5 rounded-xl text-xs font-semibold transition">
+                        Log Out
+                    </button>
+                </div>
+            </div>
+
+            <!-- In-Modal Login/Register Form -->
+            <div id="authFormView" class="space-y-4 hidden">
+                <div class="flex border-b border-gray-200">
+                    <button id="authTabLogin" onclick="switchAuthTab('login')" class="flex-1 py-2 text-sm font-bold text-brand-600 border-b-2 border-brand-600">
+                        Sign In
+                    </button>
+                    <button id="authTabRegister" onclick="switchAuthTab('register')" class="flex-1 py-2 text-sm font-semibold text-gray-500 hover:text-gray-700">
+                        Create Account
+                    </button>
+                </div>
+
+                <div id="authAlert" class="hidden p-2.5 rounded-xl text-xs font-medium"></div>
+
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Username</label>
+                        <input id="authUsernameInput" type="text" placeholder="Username"
+                            class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="text-xs font-semibold text-gray-600">Password</label>
+                        <input id="authPasswordInput" type="password" placeholder="••••••••"
+                            class="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none"
+                            onkeydown="if(event.key==='Enter') submitAuthForm()">
+                    </div>
+                </div>
+
+                <button id="authSubmitBtn" onclick="submitAuthForm()" class="w-full bg-brand-600 hover:bg-brand-700 text-white py-2.5 rounded-xl font-bold text-sm transition">
+                    Sign In
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Undo Notification Toast Container -->
+    <div id="toastContainer" class="fixed bottom-20 md:bottom-6 left-1/2 transform -translate-x-1/2 z-50 flex flex-col gap-2 w-11/12 max-w-md pointer-events-none"></div>
+
+    <!-- Fixed Bottom Mobile Navigation Bar -->
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-30 flex justify-around py-1.5 px-2 shadow-lg mobile-bottom-nav">
+        <button onclick="switchTab('portfolio')" id="mob-tab-portfolio" class="flex flex-col items-center justify-center flex-1 py-1 text-xs font-bold text-brand-600">
+            <span class="text-lg">📊</span>
+            <span>Portfolio</span>
+        </button>
+        <button onclick="switchTab('explore')" id="mob-tab-explore" class="flex flex-col items-center justify-center flex-1 py-1 text-xs font-medium text-gray-500">
+            <span class="text-lg">🔍</span>
+            <span>Explore</span>
+        </button>
+        <button onclick="switchTab('watchlist')" id="mob-tab-watchlist" class="flex flex-col items-center justify-center flex-1 py-1 text-xs font-medium text-gray-500">
+            <span class="text-lg">⭐</span>
+            <span>Watchlist</span>
+        </button>
+        <button onclick="showPhoneModal()" class="flex flex-col items-center justify-center flex-1 py-1 text-xs font-medium text-brand-600">
+            <span class="text-lg">📲</span>
+            <span>App</span>
+        </button>
+    </nav>
+
+    <script>
+    // ===== STATE & AUTHENTICATION =====
+    let selectedFund = null;
+    let currentAddMode = 'broker'; // 'broker', 'units', 'date', 'buynav'
+    let calculatedHolding = null;
+    let searchTimeout = null;
+    let modalSearchTimeout = null;
+    let autoRefreshInterval = null;
+    let currentTab = 'portfolio';
+    let currentPortfolioHoldings = [];
+    let lastDeletedHolding = null;
+    let undoToastTimeout = null;
+    let authMode = 'login';
+    let gateAuthMode = 'login';
+    let currentAuthUser = null;
+
+    function getAuthToken() {
+        return localStorage.getItem('nav_auth_token') || '';
+    }
+
+    function setAuthToken(token) {
+        if (token) localStorage.setItem('nav_auth_token', token);
+        else localStorage.removeItem('nav_auth_token');
+    }
+
+    function apiFetch(url, options = {}) {
+        const headers = options.headers ? { ...options.headers } : {};
+        const token = getAuthToken();
+        if (token) {
+            headers['Authorization'] = 'Bearer ' + token;
+        }
+        return fetch(url, { ...options, headers });
+    }
+
+    // ===== AUTH GATE CONTROLS =====
+    function showAuthGate(mode = 'login') {
+        const gate = document.getElementById('authGate');
+        if (gate) gate.classList.remove('hidden');
+        switchGateTab(mode);
+    }
+
+    function hideAuthGate() {
+        const gate = document.getElementById('authGate');
+        if (gate) gate.classList.add('hidden');
+    }
+
+    function switchGateTab(mode) {
+        gateAuthMode = mode;
+        const btnLogin = document.getElementById('gateTabLogin');
+        const btnReg = document.getElementById('gateTabRegister');
+        const submitBtn = document.getElementById('gateSubmitBtn');
+        const alertEl = document.getElementById('gateAlert');
+        if (alertEl) alertEl.classList.add('hidden');
+
+        if (mode === 'login') {
+            btnLogin.className = 'flex-1 py-2 text-sm font-bold text-brand-600 border-b-2 border-brand-600 transition';
+            btnReg.className = 'flex-1 py-2 text-sm font-semibold text-gray-400 hover:text-gray-600 transition';
+            submitBtn.textContent = 'Sign In to Portfolio';
+        } else {
+            btnReg.className = 'flex-1 py-2 text-sm font-bold text-brand-600 border-b-2 border-brand-600 transition';
+            btnLogin.className = 'flex-1 py-2 text-sm font-semibold text-gray-400 hover:text-gray-600 transition';
+            submitBtn.textContent = 'Create Free Account';
+        }
+    }
+
+    async function submitGateAuth() {
+        const username = document.getElementById('gateUsername').value.trim();
+        const password = document.getElementById('gatePassword').value;
+        const alertEl = document.getElementById('gateAlert');
+
+        if (!username || !password) {
+            alertEl.className = 'p-3 rounded-xl text-xs font-semibold bg-red-100 text-red-700';
+            alertEl.textContent = 'Please enter both username and password';
+            alertEl.classList.remove('hidden');
+            return;
+        }
+
+        const endpoint = gateAuthMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+
+        try {
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+
+            if (data.status === 'success' && data.user) {
+                setAuthToken(data.user.token);
+                currentAuthUser = data.user;
+                document.getElementById('userAccountName').textContent = data.user.username;
+                hideAuthGate();
+                showSimpleToast(`Welcome, ${data.user.username}!`);
+                await Promise.all([loadMarketStatus(), loadIndices(), loadPortfolio()]);
+                startAutoRefresh();
+            } else {
+                alertEl.className = 'p-3 rounded-xl text-xs font-semibold bg-red-100 text-red-700';
+                alertEl.textContent = data.message || 'Authentication error';
+                alertEl.classList.remove('hidden');
+            }
+        } catch (e) {
+            alertEl.className = 'p-3 rounded-xl text-xs font-semibold bg-red-100 text-red-700';
+            alertEl.textContent = 'Network error connecting to server';
+            alertEl.classList.remove('hidden');
+        }
+    }
+
+    async function quickDemoLogin() {
+        document.getElementById('gateUsername').value = 'sitaram';
+        document.getElementById('gatePassword').value = 'password';
+        gateAuthMode = 'login';
+        await submitGateAuth();
+    }
+
+    // ===== TOAST & UNDO NOTIFICATION SYSTEM =====
+    function showUndoToast(message, onUndo) {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+        
+        if (undoToastTimeout) clearTimeout(undoToastTimeout);
+
+        container.innerHTML = `
+            <div id="undoToastCard" class="pointer-events-auto bg-gray-900 text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center justify-between gap-3 border border-gray-700 fade-in">
+                <div class="flex items-center gap-2 min-w-0">
+                    <span class="text-base flex-shrink-0">🗑️</span>
+                    <p class="text-xs sm:text-sm font-medium text-gray-200 truncate">${message}</p>
+                </div>
+                <button id="undoActionBtn" class="bg-yellow-400 hover:bg-yellow-300 text-gray-900 text-xs font-bold px-3 py-1.5 rounded-xl flex-shrink-0 transition shadow-xs active:scale-95 flex items-center gap-1">
+                    <span>↩️</span>
+                    <span>UNDO</span>
+                </button>
+            </div>
+        `;
+
+        document.getElementById('undoActionBtn').onclick = () => {
+            if (undoToastTimeout) clearTimeout(undoToastTimeout);
+            container.innerHTML = '';
+            if (typeof onUndo === 'function') onUndo();
+        };
+
+        undoToastTimeout = setTimeout(() => {
+            container.innerHTML = '';
+        }, 8000);
+    }
+
+    function showSimpleToast(message, isError = false) {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+
+        const bg = isError ? 'bg-red-900 border-red-700' : 'bg-gray-900 border-gray-700';
+        container.innerHTML = `
+            <div class="pointer-events-auto ${bg} text-white px-4 py-2.5 rounded-2xl shadow-2xl text-xs sm:text-sm font-medium border fade-in text-center">
+                ${message}
+            </div>
+        `;
+        setTimeout(() => { container.innerHTML = ''; }, 3500);
+    }
+
+    // ===== UTILITY FORMATTERS =====
+    function formatCurrency(val) {
+        if (val === null || val === undefined || isNaN(val)) return '₹0.00';
+        const absVal = Math.abs(val);
+        let formatted;
+        if (absVal >= 10000000) formatted = (val / 10000000).toFixed(2) + ' Cr';
+        else if (absVal >= 100000) formatted = (val / 100000).toFixed(2) + ' L';
+        else formatted = val.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return '₹' + formatted;
+    }
+
+    function formatPct(val) {
+        if (val === null || val === undefined || isNaN(val)) return '0.00%';
+        const sign = val >= 0 ? '+' : '';
+        return sign + val.toFixed(2) + '%';
+    }
+
+    function changeColor(val) {
+        if (val > 0) return 'text-profit-dark';
+        if (val < 0) return 'text-loss-dark';
+        return 'text-gray-500';
+    }
+
+    function changeBg(val) {
+        if (val > 0) return 'bg-profit-light';
+        if (val < 0) return 'bg-loss-light';
+        return 'bg-gray-50';
+    }
+
+    // ===== TAB SWITCHING =====
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.remove('tab-active'));
+        document.getElementById('content-' + tab).classList.remove('hidden');
+        const deskTab = document.getElementById('tab-' + tab);
+        if (deskTab) deskTab.classList.add('tab-active');
+
+        // Sync Mobile Navigation Bar
+        document.querySelectorAll('[id^="mob-tab-"]').forEach(el => {
+            el.classList.remove('text-brand-600', 'font-bold');
+            el.classList.add('text-gray-500', 'font-medium');
+        });
+        const mobActive = document.getElementById('mob-tab-' + tab);
+        if (mobActive) {
+            mobActive.classList.remove('text-gray-500', 'font-medium');
+            mobActive.classList.add('text-brand-600', 'font-bold');
+        }
+
+        if (tab === 'portfolio') loadPortfolio();
+        else if (tab === 'watchlist') loadWatchlist();
+    }
+
+    // ===== MARKET STATUS =====
+    async function loadMarketStatus() {
+        try {
+            const res = await fetch('/api/market/status');
+            const data = await res.json();
+            const badge = document.getElementById('marketStatusBadge');
+            isMarketOpen = data.is_open;
+            if (data.is_open) {
+                badge.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800 border border-green-200';
+                badge.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span> LIVE <span id="autoRefreshTimer" class="font-normal text-green-700 hidden sm:inline">· 30s</span>';
+            } else {
+                badge.className = 'flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 border border-gray-200';
+                badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-gray-400"></span> ${data.message} <span id="autoRefreshTimer" class="font-normal text-gray-500 hidden sm:inline">· 30s</span>`;
+            }
+        } catch (e) {}
+    }
+
+    // ===== INDEX TICKER =====
+    async function loadIndices() {
+        try {
+            const res = await fetch('/api/market/indices');
+            const data = await res.json();
+            if (data.status !== 'success') return;
+
+            const ticker = document.getElementById('tickerContent');
+            let html = '';
+            Object.values(data.data).forEach(idx => {
+                const color = idx.change_pct >= 0 ? 'text-green-400' : 'text-red-400';
+                const arrow = idx.change_pct >= 0 ? '▲' : '▼';
+                html += `<span class="mx-4 sm:mx-6 inline-block">
+                    <span class="text-gray-300 font-medium">${idx.name}</span>
+                    <span class="text-white font-bold ml-1">${idx.current_price.toLocaleString()}</span>
+                    <span class="${color} ml-1 font-semibold">${arrow} ${Math.abs(idx.change_pct).toFixed(2)}%</span>
+                </span>`;
+            });
+            ticker.innerHTML = html + html;
+        } catch (e) {}
+    }
+
+    // ===== PORTFOLIO HOLDINGS RENDERING =====
+    async function loadPortfolio() {
+        try {
+            const res = await apiFetch('/api/portfolio');
+            const data = await res.json();
+
+            if (data.status === 'unauthenticated') {
+                showAuthGate();
+                return;
+            }
+
+            if (data.user) {
+                currentAuthUser = data.user;
+                const nameEl = document.getElementById('userAccountName');
+                if (nameEl) nameEl.textContent = data.user.username;
+            }
+
+            currentPortfolioHoldings = data.data || [];
+            const countLabel = document.getElementById('holdingsCountLabel');
+            if (countLabel) countLabel.textContent = `${currentPortfolioHoldings.length} fund${currentPortfolioHoldings.length === 1 ? '' : 's'} in portfolio`;
+
+            const summary = data.summary || {};
+            document.getElementById('summaryCurrentValue').textContent = formatCurrency(summary.total_estimated_current || summary.total_current || 0);
+            document.getElementById('summaryInvested').textContent = formatCurrency(summary.total_invested || 0);
+
+            const dayEl = document.getElementById('summaryDayChange');
+            dayEl.textContent = (summary.day_change >= 0 ? '+' : '') + formatCurrency(summary.day_change || 0);
+            dayEl.className = 'text-lg sm:text-2xl font-extrabold mt-0.5 truncate ' + changeColor(summary.day_change || 0);
+            const dayPctEl = document.getElementById('summaryDayChangePct');
+            dayPctEl.textContent = formatPct(summary.day_change_pct || 0);
+            dayPctEl.className = 'text-[11px] font-semibold mt-0.5 ' + changeColor(summary.day_change_pct || 0);
+
+            const retEl = document.getElementById('summaryTotalReturn');
+            retEl.textContent = (summary.total_return >= 0 ? '+' : '') + formatCurrency(summary.total_return || 0);
+            retEl.className = 'text-lg sm:text-2xl font-extrabold mt-0.5 truncate ' + changeColor(summary.total_return || 0);
+            const retPctEl = document.getElementById('summaryTotalReturnPct');
+            retPctEl.textContent = formatPct(summary.total_return_pct || 0);
+            retPctEl.className = 'text-[11px] font-semibold mt-0.5 ' + changeColor(summary.total_return_pct || 0);
+
+            const table = document.getElementById('portfolioTable');
+
+            if (!data.data || data.data.length === 0) {
+                table.innerHTML = `
+                <div class="p-8 text-center text-gray-400">
+                    <svg class="w-12 h-12 mx-auto mb-3 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                    </svg>
+                    <p class="font-semibold text-gray-700">No mutual funds added yet</p>
+                    <p class="text-xs mt-1 text-gray-400">Tap "Add Fund" to start tracking your mutual funds with live NAV predictions</p>
+                </div>`;
+                return;
+            }
+
+            let html = '';
+            data.data.forEach(h => {
+                const daySign = h.day_change >= 0 ? '+' : '';
+                const retSign = h.total_return >= 0 ? '+' : '';
+                const estNav = h.estimated_nav ? h.estimated_nav.toFixed(4) : (h.current_nav ? h.current_nav.toFixed(4) : '-');
+                const currNav = h.current_nav ? h.current_nav.toFixed(4) : '-';
+
+                html += `
+                <div class="bg-white rounded-2xl p-4 border border-gray-100 shadow-xs hover:shadow-md transition active:scale-[0.99] cursor-pointer fade-in" onclick="showFundDetail('${h.scheme_code}')">
+                    <!-- Top: Fund Title and Delete Button -->
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0 flex-1">
+                            <h4 class="font-bold text-gray-900 text-sm sm:text-base leading-snug line-clamp-2">${h.scheme_name}</h4>
+                            <div class="flex items-center gap-1.5 mt-1 flex-wrap">
+                                <span class="text-[10px] px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-semibold">${h.fund_type || 'Equity'}</span>
+                                ${h.benchmark_name ? `<span class="text-[10px] text-gray-400 font-medium">vs ${h.benchmark_name}</span>` : ''}
+                                <span class="text-[10px] text-gray-400">· Units: ${h.units?.toFixed(4)}</span>
+                            </div>
+                        </div>
+                        <button onclick="event.stopPropagation(); removeFromPortfolio('${h.scheme_code}')" class="p-2 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition -mr-1 -mt-1 flex-shrink-0" title="Delete holding">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                    </div>
+
+                    <!-- Live Est. NAV Banner -->
+                    <div class="mt-3 py-1.5 px-3 rounded-xl bg-gray-50 flex items-center justify-between text-xs">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-gray-500 font-medium">Est. NAV:</span>
+                            <span class="font-bold text-gray-900 font-mono">₹${estNav}</span>
+                            <span class="text-[10px] text-gray-400 font-normal">(Last NAV: ₹${currNav})</span>
+                        </div>
+                        <span class="font-bold text-[11px] ${changeColor(h.nav_change_pct)}">${formatPct(h.nav_change_pct)}</span>
+                    </div>
+
+                    <!-- Metrics Grid -->
+                    <div class="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-gray-100 text-xs">
+                        <div>
+                            <p class="text-gray-400 text-[11px]">Current Value</p>
+                            <p class="font-extrabold text-gray-900 text-base mt-0.5">${formatCurrency(h.estimated_value || h.current_value)}</p>
+                            <p class="text-[11px] text-gray-400 mt-0.5">Invested: <span class="text-gray-600 font-medium">${formatCurrency(h.invested_amount)}</span></p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-gray-400 text-[11px]">Total Returns</p>
+                            <p class="font-extrabold text-base mt-0.5 ${changeColor(h.total_return)}">${retSign}${formatCurrency(h.total_return)}</p>
+                            <p class="text-[11px] font-bold ${changeColor(h.total_return_pct)} mt-0.5">${formatPct(h.total_return_pct)}</p>
+                        </div>
+                    </div>
+
+                    <!-- Day Change Row -->
+                    <div class="mt-2.5 pt-2 border-t border-dashed border-gray-100 flex items-center justify-between text-xs">
+                        <span class="text-gray-400 text-[11px]">1D Est. Change:</span>
+                        <span class="font-bold ${changeColor(h.day_change)}">${daySign}${formatCurrency(h.day_change)}</span>
+                    </div>
+                </div>`;
+            });
+            table.innerHTML = html;
+        } catch (e) {
+            console.error('Portfolio error:', e);
+        }
+    }
+
+    // ===== REMOVE & UNDO HOLDING =====
+    async function removeFromPortfolio(code) {
+        const holding = currentPortfolioHoldings.find(h => h.scheme_code === code);
+        const fundTitle = holding?.scheme_name || 'Fund';
+
+        try {
+            const res = await apiFetch('/api/portfolio/' + code, { method: 'DELETE' });
+            const data = await res.json();
+            
+            if (data.status === 'success') {
+                lastDeletedHolding = data.removed_item || holding;
+                
+                showUndoToast(`Removed "${fundTitle}"`, async () => {
+                    if (lastDeletedHolding) {
+                        try {
+                            await apiFetch('/api/portfolio/add', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    scheme_code: lastDeletedHolding.scheme_code,
+                                    scheme_name: lastDeletedHolding.scheme_name,
+                                    units: lastDeletedHolding.units,
+                                    avg_buy_nav: lastDeletedHolding.avg_buy_nav,
+                                    invested_amount: lastDeletedHolding.invested_amount
+                                })
+                            });
+                            showSimpleToast(`✅ Restored "${lastDeletedHolding.scheme_name}"!`);
+                            lastDeletedHolding = null;
+                            loadPortfolio();
+                        } catch (err) {
+                            showSimpleToast('Failed to restore fund', true);
+                        }
+                    }
+                });
+
+                loadPortfolio();
+            } else {
+                showSimpleToast(data.message || 'Error removing fund', true);
+            }
+        } catch (e) {
+            showSimpleToast('Error removing fund', true);
+        }
+    }
+
+    // ===== SEARCH & EXPLORE =====
+    function debounceSearch(query) {
+        clearTimeout(searchTimeout);
+        if (query.length < 2) {
+            document.getElementById('exploreResults').innerHTML = `
+            <div class="bg-white rounded-2xl border border-gray-100 p-8 text-center text-gray-400 shadow-xs">
+                <p class="font-semibold text-gray-600">Search 10,000+ Indian Mutual Funds</p>
+                <p class="text-xs mt-1 text-gray-400">Type any fund name, AMC, or scheme code to see live NAV predictions</p>
+            </div>`;
+            return;
+        }
+        searchTimeout = setTimeout(() => searchFunds(query), 280);
+    }
+
+    async function searchFunds(query) {
+        const container = document.getElementById('exploreResults');
+        container.innerHTML = '<div class="text-center py-6 text-gray-400 font-medium">Searching funds...</div>';
+
+        try {
+            const res = await fetch('/api/funds/search?q=' + encodeURIComponent(query));
+            const data = await res.json();
+
+            if (!data.results || data.results.length === 0) {
+                container.innerHTML = '<div class="bg-white rounded-2xl border border-gray-100 p-6 text-center text-gray-400">No mutual funds found</div>';
+                return;
+            }
+
+            let html = '';
+            data.results.forEach(fund => {
+                const nav = fund.nav ? fund.nav.toFixed(4) : 'N/A';
+                const cls = fund.classification || {};
+                const est = fund.estimation || {};
+                const hasEst = est.estimated_nav !== undefined && est.estimated_nav !== null;
+                const estNav = hasEst ? est.estimated_nav.toFixed(4) : null;
+                const changePct = est.nav_change_pct || 0;
+                
+                html += `
+                <div class="bg-white rounded-2xl border border-gray-100 p-3.5 sm:p-4 shadow-xs hover:shadow-md cursor-pointer transition fade-in" onclick="showFundDetail('${fund.scheme_code}')">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                        <div class="flex-1 min-w-0">
+                            <h4 class="font-bold text-sm text-gray-900 leading-snug">${fund.scheme_name}</h4>
+                            <div class="flex items-center gap-1.5 mt-1 flex-wrap text-[11px]">
+                                <span class="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-mono font-semibold">${fund.scheme_code}</span>
+                                ${cls.benchmark_name ? `<span class="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 font-medium">${cls.benchmark_name}</span>` : ''}
+                                ${cls.fund_type ? `<span class="px-2 py-0.5 rounded-md bg-gray-100 text-gray-600">${cls.fund_type}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="flex items-center justify-between sm:justify-end gap-3 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                            <div class="text-left sm:text-right">
+                                ${hasEst ? `
+                                    <p class="text-[11px] text-gray-400">Est. NAV</p>
+                                    <p class="font-extrabold text-sm ${changeColor(changePct)}">₹${estNav} <span class="text-xs font-normal">(${formatPct(changePct)})</span></p>
+                                    <p class="text-[10px] text-gray-400">NAV: ₹${nav}</p>
+                                ` : `
+                                    <p class="text-[11px] text-gray-400">NAV</p>
+                                    <p class="font-bold text-sm text-gray-800">₹${nav}</p>
+                                `}
+                            </div>
+                            <div class="flex gap-1.5">
+                                <button onclick="event.stopPropagation(); quickAddToPortfolio('${fund.scheme_code}', \`${fund.scheme_name.replace(/`/g,"'")}\`, ${fund.nav || 0})"
+                                    class="p-2 bg-blue-50 hover:bg-blue-100 text-brand-700 rounded-xl transition shadow-xs" title="Add to Portfolio">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                                </button>
+                                <button onclick="event.stopPropagation(); addToWatchlist('${fund.scheme_code}', \`${fund.scheme_name.replace(/`/g,"'")}\`)"
+                                    class="p-2 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 rounded-xl transition shadow-xs" title="Add to Watchlist">
+                                    ⭐
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        } catch (e) {
+            container.innerHTML = '<div class="text-center py-6 text-red-500 font-medium">Error loading search results. Please retry.</div>';
+        }
+    }
+
+    // ===== REVAMPED ADD FUND MODAL LOGIC =====
+    function showAddFundModal() {
+        document.getElementById('addFundModal').classList.remove('hidden');
+        selectedFund = null;
+        calculatedHolding = null;
+        document.getElementById('modalSearchInput').value = '';
+        document.getElementById('modalSearchResults').classList.add('hidden');
+        document.getElementById('selectedFundInfo').classList.add('hidden');
+        document.getElementById('calculationPreviewBox').classList.add('hidden');
+        document.getElementById('addFundBtn').disabled = true;
+
+        // Reset inputs
+        ['brokerInvestedInput', 'brokerCurrentValInput', 'unitsUnitsInput', 'unitsInvestedInput', 'dateInvestedInput', 'buynavNavInput', 'buynavInvestedInput'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.value = '';
+        });
+        const dateEl = document.getElementById('dateDateInput');
+        if (dateEl) dateEl.value = '';
+        const statusEl = document.getElementById('dateLookupStatus');
+        if (statusEl) statusEl.classList.add('hidden');
+
+        switchAddMode('broker');
+        setTimeout(() => document.getElementById('modalSearchInput').focus(), 120);
+    }
+
+    function closeAddFundModal() {
+        document.getElementById('addFundModal').classList.add('hidden');
+    }
+
+    function switchAddMode(mode) {
+        currentAddMode = mode;
+        ['broker', 'units', 'date', 'buynav'].forEach(m => {
+            const tabBtn = document.getElementById('addModeTab-' + m);
+            const sec = document.getElementById('modeSection-' + m);
+            if (m === mode) {
+                tabBtn.className = 'py-1.5 px-1 rounded-lg bg-white text-brand-700 font-bold shadow-xs transition';
+                sec.classList.remove('hidden');
+            } else {
+                tabBtn.className = 'py-1.5 px-1 rounded-lg hover:text-gray-900 transition';
+                sec.classList.add('hidden');
+            }
+        });
+        recalculateHolding();
+    }
+
+    function debounceModalSearch(query) {
+        clearTimeout(modalSearchTimeout);
+        if (query.length < 2) {
+            document.getElementById('modalSearchResults').classList.add('hidden');
+            return;
+        }
+        modalSearchTimeout = setTimeout(() => modalSearchFunds(query), 280);
+    }
+
+    async function modalSearchFunds(query) {
+        const container = document.getElementById('modalSearchResults');
+        try {
+            const res = await fetch('/api/funds/search?q=' + encodeURIComponent(query));
+            const data = await res.json();
+
+            if (!data.results || data.results.length === 0) {
+                container.innerHTML = '<div class="p-3 text-xs text-gray-400">No mutual funds found</div>';
+                container.classList.remove('hidden');
+                return;
+            }
+
+            let html = '';
+            data.results.slice(0, 15).forEach(fund => {
+                const navVal = fund.nav || 0;
+                html += `
+                <div class="p-3 hover:bg-blue-50 cursor-pointer text-xs transition"
+                    onclick="selectFundForAdd('${fund.scheme_code}', \`${fund.scheme_name.replace(/`/g,"'")}\`, ${navVal})">
+                    <p class="font-bold text-gray-800 truncate">${fund.scheme_name}</p>
+                    <p class="text-[11px] text-gray-400 mt-0.5">${fund.scheme_code} · NAV: ₹${navVal.toFixed(4)}</p>
+                </div>`;
+            });
+            container.innerHTML = html;
+            container.classList.remove('hidden');
+        } catch (e) {
+            container.innerHTML = '<div class="p-3 text-xs text-red-500">Error searching</div>';
+            container.classList.remove('hidden');
+        }
+    }
+
+    function selectFundForAdd(code, name, nav = 0) {
+        selectedFund = { scheme_code: code, scheme_name: name, nav: nav };
+        document.getElementById('selectedFundName').textContent = name;
+        document.getElementById('selectedFundCode').textContent = 'Code: ' + code;
+        const navEl = document.getElementById('selectedFundNav');
+        if (navEl && nav > 0) {
+            navEl.textContent = `· Today's NAV: ₹${nav.toFixed(4)}`;
+        }
+        document.getElementById('selectedFundInfo').classList.remove('hidden');
+        document.getElementById('modalSearchResults').classList.add('hidden');
+        recalculateHolding();
+    }
+
+    // Calculation handlers for past investments
+    function onBrokerValuesChange() {
+        recalculateHolding();
+    }
+
+    function onUnitsValuesChange() {
+        recalculateHolding();
+    }
+
+    async function onDateValuesChange() {
+        const dateStr = document.getElementById('dateDateInput').value;
+        const invested = parseFloat(document.getElementById('dateInvestedInput').value) || 0;
+        const statusEl = document.getElementById('dateLookupStatus');
+
+        if (!selectedFund || !dateStr) {
+            recalculateHolding();
+            return;
+        }
+
+        statusEl.classList.remove('hidden');
+        statusEl.textContent = `Looking up historical NAV for ${dateStr}...`;
+        statusEl.className = 'text-xs text-brand-600 font-medium';
+
+        try {
+            const res = await fetch(`/api/funds/${selectedFund.scheme_code}/nav_at_date?date=${encodeURIComponent(dateStr)}`);
+            const data = await res.json();
+            if (data.status === 'success' && data.nav) {
+                statusEl.textContent = `✅ Historical NAV on ${data.matched_date}: ₹${data.nav.toFixed(4)}`;
+                statusEl.className = 'text-xs text-green-700 font-bold';
+                selectedFund.historical_nav = data.nav;
+            } else {
+                statusEl.textContent = 'Could not find historical NAV for this date.';
+                statusEl.className = 'text-xs text-red-600 font-medium';
+                selectedFund.historical_nav = null;
+            }
+        } catch (e) {
+            statusEl.textContent = 'Error fetching historical NAV.';
+            statusEl.className = 'text-xs text-red-600 font-medium';
+            selectedFund.historical_nav = null;
+        }
+
+        recalculateHolding();
+    }
+
+    function onBuyNavValuesChange() {
+        recalculateHolding();
+    }
+
+    function recalculateHolding() {
+        if (!selectedFund) {
+            document.getElementById('calculationPreviewBox').classList.add('hidden');
+            document.getElementById('addFundBtn').disabled = true;
+            return;
+        }
+
+        const todayNav = selectedFund.nav || 0;
+        let units = 0;
+        let buyNav = 0;
+        let invested = 0;
+        let currentVal = 0;
+
+        if (currentAddMode === 'broker') {
+            invested = parseFloat(document.getElementById('brokerInvestedInput').value) || 0;
+            currentVal = parseFloat(document.getElementById('brokerCurrentValInput').value) || 0;
+            if (currentVal > 0 && todayNav > 0) {
+                units = currentVal / todayNav;
+                buyNav = invested > 0 ? (invested / units) : todayNav;
+            } else if (invested > 0 && todayNav > 0) {
+                units = invested / todayNav;
+                buyNav = todayNav;
+                currentVal = invested;
+            }
+        } else if (currentAddMode === 'units') {
+            units = parseFloat(document.getElementById('unitsUnitsInput').value) || 0;
+            invested = parseFloat(document.getElementById('unitsInvestedInput').value) || 0;
+            if (units > 0 && todayNav > 0) {
+                currentVal = units * todayNav;
+                buyNav = invested > 0 ? (invested / units) : todayNav;
+            }
+        } else if (currentAddMode === 'date') {
+            invested = parseFloat(document.getElementById('dateInvestedInput').value) || 0;
+            const histNav = selectedFund.historical_nav || 0;
+            if (invested > 0 && histNav > 0) {
+                buyNav = histNav;
+                units = invested / histNav;
+                currentVal = todayNav > 0 ? (units * todayNav) : invested;
+            }
+        } else if (currentAddMode === 'buynav') {
+            buyNav = parseFloat(document.getElementById('buynavNavInput').value) || 0;
+            invested = parseFloat(document.getElementById('buynavInvestedInput').value) || 0;
+            if (buyNav > 0 && invested > 0) {
+                units = invested / buyNav;
+                currentVal = todayNav > 0 ? (units * todayNav) : invested;
+            }
+        }
+
+        const box = document.getElementById('calculationPreviewBox');
+        const addBtn = document.getElementById('addFundBtn');
+
+        if (units > 0) {
+            calculatedHolding = {
+                scheme_code: selectedFund.scheme_code,
+                scheme_name: selectedFund.scheme_name,
+                units: Math.round(units * 10000) / 10000,
+                avg_buy_nav: buyNav > 0 ? Math.round(buyNav * 10000) / 10000 : null,
+                invested_amount: invested > 0 ? Math.round(invested * 100) / 100 : null
+            };
+
+            const gain = currentVal - invested;
+            const gainPct = invested > 0 ? (gain / invested) * 100 : 0;
+            const gainSign = gain >= 0 ? '+' : '';
+
+            document.getElementById('previewUnits').textContent = calculatedHolding.units.toFixed(4);
+            document.getElementById('previewBuyNav').textContent = buyNav > 0 ? '₹' + buyNav.toFixed(4) : '-';
+            document.getElementById('previewTodayNav').textContent = todayNav > 0 ? '₹' + todayNav.toFixed(4) : '-';
+            document.getElementById('previewCurrentVal').textContent = formatCurrency(currentVal);
+            
+            const retEl = document.getElementById('previewReturns');
+            retEl.textContent = `${gainSign}${formatCurrency(gain)} (${formatPct(gainPct)})`;
+            retEl.className = 'font-extrabold font-mono ' + changeColor(gain);
+
+            box.classList.remove('hidden');
+            addBtn.disabled = false;
+        } else {
+            calculatedHolding = null;
+            box.classList.add('hidden');
+            addBtn.disabled = true;
+        }
+    }
+
+    async function addFundToPortfolio() {
+        if (!calculatedHolding) {
+            showSimpleToast('Please enter your investment values', true);
+            return;
+        }
+
+        try {
+            const res = await apiFetch('/api/portfolio/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(calculatedHolding)
+            });
+            const data = await res.json();
+            if (data.status === 'success') {
+                closeAddFundModal();
+                showSimpleToast(`Added "${calculatedHolding.scheme_name}"!`);
+                loadPortfolio();
+            } else {
+                showSimpleToast('Error: ' + data.message, true);
+            }
+        } catch (e) {
+            showSimpleToast('Error adding fund to portfolio', true);
+        }
+    }
+
+    function quickAddToPortfolio(code, name, nav = 0) {
+        showAddFundModal();
+        selectFundForAdd(code, name, nav);
+    }
+
+    // ===== WATCHLIST =====
+    async function addToWatchlist(code, name) {
+        try {
+            await apiFetch('/api/watchlist/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ scheme_code: code, scheme_name: name })
+            });
+            showSimpleToast(`Added to Watchlist ⭐`);
+        } catch (e) {}
+    }
+
+    async function loadWatchlist() {
+        try {
+            const res = await apiFetch('/api/watchlist');
+            const data = await res.json();
+            const container = document.getElementById('watchlistContent');
+
+            if (!data.data || data.data.length === 0) {
+                container.innerHTML = `
+                <div class="p-8 text-center text-gray-400">
+                    <p class="font-semibold text-gray-700">Your watchlist is empty</p>
+                    <p class="text-xs mt-1 text-gray-400">Search funds in Explore and tap ⭐ to track them here</p>
+                </div>`;
+                return;
+            }
+
+            let html = '';
+            data.data.forEach(item => {
+                const est = item.estimation || {};
+                const nav = item.current_nav?.toFixed(4) || 'N/A';
+                const estNav = est.estimated_nav?.toFixed(4) || nav;
+                const changePct = est.nav_change_pct || 0;
+                html += `
+                <div class="p-3.5 bg-gray-50 rounded-2xl hover:bg-blue-50 transition cursor-pointer fade-in flex items-center justify-between gap-3" onclick="showFundDetail('${item.scheme_code}')">
+                    <div class="min-w-0 flex-1">
+                        <p class="font-bold text-sm truncate text-gray-900">${item.scheme_name}</p>
+                        <p class="text-[11px] text-gray-400 mt-0.5">${item.scheme_code}</p>
+                    </div>
+                    <div class="flex items-center gap-3 flex-shrink-0">
+                        <div class="text-right">
+                            <p class="font-bold text-sm text-gray-900">₹${estNav}</p>
+                            <p class="text-xs font-semibold ${changeColor(changePct)}">${formatPct(changePct)}</p>
+                        </div>
+                        <button onclick="event.stopPropagation(); removeFromWatchlist('${item.scheme_code}')"
+                            class="p-1.5 hover:bg-red-100 rounded-xl text-gray-300 hover:text-red-500 transition" title="Remove">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        } catch (e) {}
+    }
+
+    async function removeFromWatchlist(code) {
+        await apiFetch('/api/watchlist/' + code, { method: 'DELETE' });
+        loadWatchlist();
+    }
+
+    // ===== ACCOUNT MODAL =====
+    function showAuthModal() {
+        document.getElementById('authModal').classList.remove('hidden');
+        if (currentAuthUser && currentAuthUser.username) {
+            document.getElementById('authProfileView').classList.remove('hidden');
+            document.getElementById('authFormView').classList.add('hidden');
+            document.getElementById('profileUsername').textContent = currentAuthUser.username;
+            document.getElementById('profileAvatar').textContent = currentAuthUser.username[0].toUpperCase();
+        } else {
+            document.getElementById('authProfileView').classList.add('hidden');
+            document.getElementById('authFormView').classList.remove('hidden');
+            switchAuthTab('login');
+        }
+    }
+
+    function closeAuthModal() {
+        document.getElementById('authModal').classList.add('hidden');
+    }
+
+    function switchToAuthForm(mode) {
+        document.getElementById('authProfileView').classList.add('hidden');
+        document.getElementById('authFormView').classList.remove('hidden');
+        switchAuthTab(mode);
+    }
+
+    function switchAuthTab(mode) {
+        authMode = mode;
+        const btnLogin = document.getElementById('authTabLogin');
+        const btnReg = document.getElementById('authTabRegister');
+        const submitBtn = document.getElementById('authSubmitBtn');
+        const alertEl = document.getElementById('authAlert');
+        if (alertEl) alertEl.classList.add('hidden');
+
+        if (mode === 'login') {
+            btnLogin.className = 'flex-1 py-2 text-sm font-bold text-brand-600 border-b-2 border-brand-600';
+            btnReg.className = 'flex-1 py-2 text-sm font-semibold text-gray-500 hover:text-gray-700';
+            submitBtn.textContent = 'Sign In';
+        } else {
+            btnReg.className = 'flex-1 py-2 text-sm font-bold text-brand-600 border-b-2 border-brand-600';
+            btnLogin.className = 'flex-1 py-2 text-sm font-semibold text-gray-500 hover:text-gray-700';
+            submitBtn.textContent = 'Create Free Account';
+        }
+    }
+
+    async function submitAuthForm() {
+        const username = document.getElementById('authUsernameInput').value.trim();
+        const password = document.getElementById('authPasswordInput').value;
+        const alertEl = document.getElementById('authAlert');
+
+        if (!username || !password) {
+            alertEl.className = 'p-2.5 rounded-xl text-xs font-semibold bg-red-100 text-red-700';
+            alertEl.textContent = 'Please enter username and password';
+            alertEl.classList.remove('hidden');
+            return;
+        }
+
+        const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+
+        try {
+            const res = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+
+            if (data.status === 'success' && data.user) {
+                setAuthToken(data.user.token);
+                currentAuthUser = data.user;
+                document.getElementById('userAccountName').textContent = data.user.username;
+                showSimpleToast(`Signed in as ${data.user.username}`);
+                closeAuthModal();
+                loadPortfolio();
+                if (currentTab === 'watchlist') loadWatchlist();
+            } else {
+                alertEl.className = 'p-2.5 rounded-xl text-xs font-semibold bg-red-100 text-red-700';
+                alertEl.textContent = data.message || 'Authentication error';
+                alertEl.classList.remove('hidden');
+            }
+        } catch (e) {
+            alertEl.className = 'p-2.5 rounded-xl text-xs font-semibold bg-red-100 text-red-700';
+            alertEl.textContent = 'Network error during login';
+            alertEl.classList.remove('hidden');
+        }
+    }
+
+    async function logoutCurrentUser() {
+        try {
+            await apiFetch('/api/auth/logout', { method: 'POST' });
+        } catch (e) {}
+        setAuthToken('');
+        currentAuthUser = null;
+        document.getElementById('userAccountName').textContent = 'Sign In';
+        closeAuthModal();
+        showAuthGate('login');
+    }
+
+    // ===== FUND DETAIL MODAL =====
+    async function showFundDetail(code) {
+        document.getElementById('fundDetailModal').classList.remove('hidden');
+        document.getElementById('fundDetailContent').innerHTML = '<div class="text-center py-8 text-gray-400">Loading details...</div>';
+
+        try {
+            const [fundRes, estRes] = await Promise.all([
+                fetch('/api/funds/' + code),
+                fetch('/api/estimate/fund/' + code)
+            ]);
+            const fundData = await fundRes.json();
+            const estData = await estRes.json();
+
+            const fund = fundData.data || {};
+            const est = estData.data || {};
+            const cls = fund.classification || {};
+
+            document.getElementById('detailFundName').textContent = fund.scheme_name || 'Fund Details';
+
+            document.getElementById('fundDetailContent').innerHTML = `
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="bg-gray-50 rounded-2xl p-3 border border-gray-100">
+                        <p class="text-xs text-gray-400 font-medium">Last Recorded NAV</p>
+                        <p class="text-xl font-extrabold text-gray-900 mt-0.5">₹${fund.nav?.toFixed(4) || 'N/A'}</p>
+                        <p class="text-[11px] text-gray-400">${fund.nav_date || ''}</p>
+                    </div>
+                    <div class="${changeBg(est.nav_change_pct)} rounded-2xl p-3 border border-gray-100">
+                        <p class="text-xs text-gray-400 font-medium">Live Estimated NAV</p>
+                        <p class="text-xl font-extrabold ${changeColor(est.nav_change_pct)} mt-0.5">₹${est.estimated_nav?.toFixed(4) || 'N/A'}</p>
+                        <p class="text-[11px] font-bold ${changeColor(est.nav_change_pct)}">${formatPct(est.nav_change_pct)}</p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 mb-4 text-xs">
+                    <div class="bg-gray-50 rounded-xl p-2.5">
+                        <p class="text-gray-400">Category</p>
+                        <p class="font-bold text-gray-800 mt-0.5">${cls.fund_type || est.fund_type || 'N/A'}</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-2.5">
+                        <p class="text-gray-400">Benchmark Index</p>
+                        <p class="font-bold text-gray-800 mt-0.5">${cls.benchmark_name || est.benchmark_name || 'N/A'}</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-2.5">
+                        <p class="text-gray-400">Benchmark Change</p>
+                        <p class="font-bold mt-0.5 ${changeColor(est.benchmark_change_pct)}">${formatPct(est.benchmark_change_pct)}</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-2.5">
+                        <p class="text-gray-400">Equity Exposure</p>
+                        <p class="font-bold text-gray-800 mt-0.5">${est.equity_pct ?? cls.equity_pct ?? 'N/A'}%</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-2.5">
+                        <p class="text-gray-400">AMC</p>
+                        <p class="font-bold text-gray-800 mt-0.5 truncate">${fund.amc || 'N/A'}</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-2.5">
+                        <p class="text-gray-400">Scheme Code</p>
+                        <p class="font-bold text-gray-800 mt-0.5 font-mono">${fund.scheme_code || 'N/A'}</p>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="quickAddToPortfolio('${fund.scheme_code}', \`${(fund.scheme_name||'').replace(/`/g,"'")}\`, ${fund.nav || 0}); closeFundDetailModal();"
+                        class="flex-1 bg-brand-600 hover:bg-brand-700 text-white py-2.5 rounded-xl text-xs sm:text-sm font-bold transition">
+                        ➕ Add to Portfolio
+                    </button>
+                    <button onclick="addToWatchlist('${fund.scheme_code}', \`${(fund.scheme_name||'').replace(/`/g,"'")}\`); closeFundDetailModal();"
+                        class="flex-1 bg-yellow-50 text-yellow-800 hover:bg-yellow-100 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition border border-yellow-200">
+                        ⭐ Watchlist
+                    </button>
+                </div>
+            `;
+        } catch (e) {
+            document.getElementById('fundDetailContent').innerHTML = '<div class="text-center py-6 text-red-500">Error loading details</div>';
+        }
+    }
+
+    function closeFundDetailModal() {
+        document.getElementById('fundDetailModal').classList.add('hidden');
+    }
+
+    // ===== REFRESH =====
+    async function refreshAllData() {
+        const icon = document.getElementById('refreshIcon');
+        icon.classList.add('animate-spin');
+        try {
+            await fetch('/api/refresh');
+            await Promise.all([loadMarketStatus(), loadIndices()]);
+            if (currentTab === 'portfolio') await loadPortfolio();
+            else if (currentTab === 'watchlist') await loadWatchlist();
+            showSimpleToast('Market data refreshed');
+        } catch (e) {}
+        icon.classList.remove('animate-spin');
+    }
+
+    // ===== AUTO REFRESH =====
+    let countdownSeconds = 30;
+    let isMarketOpen = false;
+
+    function startAutoRefresh() {
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+
+        autoRefreshInterval = setInterval(async () => {
+            countdownSeconds--;
+            
+            const timerEl = document.getElementById('autoRefreshTimer');
+            if (timerEl) {
+                timerEl.textContent = `· ${countdownSeconds}s`;
+            }
+
+            if (countdownSeconds <= 0) {
+                countdownSeconds = 30;
+                try {
+                    await loadIndices();
+                    if (currentTab === 'portfolio') await loadPortfolio();
+                    else if (currentTab === 'watchlist') await loadWatchlist();
+                    await loadMarketStatus();
+                } catch (e) {}
+            }
+        }, 1000);
+    }
+
+    // ===== PWA INSTALLATION =====
+    let deferredPrompt = null;
+
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW error:', err));
+        });
+    }
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        const installBtn = document.getElementById('pwaInstallBtn');
+        if (installBtn) installBtn.classList.remove('hidden');
+    });
+
+    async function installPWA() {
+        if (!deferredPrompt) {
+            showPhoneModal();
+            return;
+        }
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+            const installBtn = document.getElementById('pwaInstallBtn');
+            if (installBtn) installBtn.classList.add('hidden');
+        }
+        deferredPrompt = null;
+    }
+
+    function showPhoneModal() {
+        document.getElementById('phoneModal').classList.remove('hidden');
+    }
+
+    function closePhoneModal() {
+        document.getElementById('phoneModal').classList.add('hidden');
+    }
+
+    function copyPhoneUrl() {
+        const text = document.getElementById('phoneUrlText').textContent;
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = document.getElementById('copyUrlBtn');
+            btn.textContent = 'Copied!';
+            btn.classList.add('bg-green-600');
+            setTimeout(() => {
+                btn.textContent = 'Copy';
+                btn.classList.remove('bg-green-600');
+            }, 2000);
+        });
+    }
+
+    // ===== APPLICATION STARTUP =====
+    async function init() {
+        const token = getAuthToken();
+        if (!token) {
+            // First time user or logged out -> Require login first!
+            showAuthGate('login');
+            return;
+        }
+
+        try {
+            const meRes = await apiFetch('/api/auth/me');
+            const meData = await meRes.json();
+            if (meData.status === 'success' && meData.user) {
+                currentAuthUser = meData.user;
+                const nameEl = document.getElementById('userAccountName');
+                if (nameEl) nameEl.textContent = meData.user.username;
+                hideAuthGate();
+            } else {
+                showAuthGate('login');
+                return;
+            }
+        } catch (e) {
+            showAuthGate('login');
+            return;
+        }
+
+        await Promise.all([loadMarketStatus(), loadIndices(), loadPortfolio()]);
+        startAutoRefresh();
+    }
+
+    init();
+    </script>
+</body>
+</html>
