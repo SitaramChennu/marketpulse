@@ -493,7 +493,7 @@
                     <span class="px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-bold text-[10px]">Worldwide 4G/5G</span>
                 </div>
                 <div class="flex items-center justify-between gap-2 mt-1">
-                    <span id="phoneUrlText" class="font-mono text-brand-700 font-semibold truncate text-[11px] sm:text-xs">https://seconds-yeah-red-fairly.trycloudflare.com</span>
+                    <span id="phoneUrlText" class="font-mono text-brand-700 font-semibold truncate text-[11px] sm:text-xs">https://angels-living-never-corners.trycloudflare.com</span>
                     <button onclick="copyPhoneUrl()" id="copyUrlBtn" class="bg-brand-600 hover:bg-brand-700 text-white text-xs px-2.5 py-1 rounded-lg flex-shrink-0 transition">
                         Copy
                     </button>
@@ -1645,6 +1645,10 @@
     }
 
     function showPhoneModal() {
+        const host = window.location.hostname;
+        if (host !== 'localhost' && host !== '127.0.0.1') {
+            document.getElementById('phoneUrlText').textContent = window.location.origin;
+        }
         document.getElementById('phoneModal').classList.remove('hidden');
     }
 
